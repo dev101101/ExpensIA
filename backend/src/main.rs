@@ -13,6 +13,8 @@ mod domain;
 mod observability;
 mod rag;
 
+use api::AppState;
+
 #[tokio::main]
 async fn main() {
     dotenvy::dotenv().ok();
@@ -25,11 +27,12 @@ async fn main() {
 
     sqlx::migrate!("./migrations").run(&pool).await.unwrap();
 
+    let state = AppState::new(pool);
+
     let app = Router::new()
-        .nest("/api", api::router())
+        .nest("/api", api::router(state))
         .layer(TraceLayer::new_for_http())
-        .layer(CorsLayer::permissive())
-        .with_state(pool);
+        .layer(CorsLayer::permissive());
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 3000));
     tracing::info!("listening on {}", addr);
